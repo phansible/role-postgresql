@@ -1,6 +1,6 @@
 # Phansible Role: PostgreSQL
 
-[![Build Status](https://travis-ci.org/phansible/role-postgresql.svg?branch=master)](https://travis-ci.org/phansible/role-postgresql)
+[![CI](https://github.com/phansible/role-postgresql/actions/workflows/ci.yml/badge.svg)](https://github.com/phansible/role-postgresql/actions/workflows/ci.yml)
 
 An Ansible Role that installs [PostgreSQL](http://www.postgresql.org/) on Ubuntu specifically created with [Phansible](http://phansible.com/) in mind.
 
