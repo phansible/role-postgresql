@@ -45,6 +45,10 @@
       - acl
     state: latest
 
+- name: Ensure PostgreSQL is running
+  become: yes
+  service: name=postgresql state=started enabled=yes
+
 - name: Create users
   become: yes
   become_user: postgres

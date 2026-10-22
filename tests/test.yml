@@ -1,5 +1,8 @@
 ---
 - hosts: all
   remote_user: root
+  vars:
+    # official images ship without sudo
+    ansible_become_method: su
   roles:
     - role-postgresql
