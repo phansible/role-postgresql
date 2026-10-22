@@ -1,42 +1,68 @@
 ---
-
-- name: Add PostgreSQL Repository
+- name: Install repository prerequisites
   become: yes
-  apt_repository: repo='deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main' state=present
+  apt:
+    pkg: ca-certificates
+    update_cache: yes
+    cache_valid_time: 3600
 
-- name: Add Keys for PostgreSQL Repository
+- name: Ensure apt keyrings directory exists
   become: yes
-  apt_key: url=https://www.postgresql.org/media/keys/ACCC4CF8.asc state=present
+  file: path=/etc/apt/keyrings state=directory mode=0755
 
-- name: Update apt
+- name: Add PostgreSQL repository key
   become: yes
-  apt: update_cache=yes cache_valid_time=3600
+  get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /etc/apt/keyrings/postgresql.asc
+    mode: '0644'
+    force: no
 
+- name: Add PostgreSQL repository
+  become: yes
+  deb822_repository:
+    name: pgdg
+    uris: https://apt.postgresql.org/pub/repos/apt
+    suites: "{{ ansible_facts.distribution_release }}-pgdg"
+    components: main
+    signed_by: /etc/apt/keyrings/postgresql.asc
+    install_python_debian: yes
+  register: postgresql_repo
+
+- name: Update packages database for the PostgreSQL repository
+  become: yes
+  apt: update_cache=yes
+  when: postgresql_repo is changed
+
+# acl lets Ansible hand its temp files to the postgres user when becoming it
 - name: Install PostgreSQL Packages
   become: yes
   apt:
-      name: "{{ packages }}" 
-      state: latest 
-      force: yes
-  vars:
-    packages:
-    - postgresql
-    - postgresql-client
-    - python-pygresql
-    - python-psycopg2
+    pkg:
+      - postgresql
+      - postgresql-client
+      - python3-psycopg2
+      - acl
+    state: latest
 
+- name: Create users
+  become: yes
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ postgresql.user }}"
+    password: "{{ postgresql.password }}"
+
+# owning the database is what grants the user the public schema since PostgreSQL 15
 - name: Create databases
   become: yes
   become_user: postgres
-  postgresql_db: name={{ postgresql.database }} state=present
+  community.postgresql.postgresql_db:
+    name: "{{ postgresql.database }}"
+    owner: "{{ postgresql.user }}"
+    state: present
 
 - name: Import dump
   become: yes
   become_user: postgres
   shell: psql {{ postgresql.database }} < /vagrant/{{ postgresql.dump }}
-  when: postgresql.dump
-
-- name: Create users
-  become: yes
-  become_user: postgres
-  postgresql_user: name={{ postgresql.user }} password={{ postgresql.password }} db={{ postgresql.database }} priv=ALL encrypted=true
+  when: postgresql.dump | length > 0
